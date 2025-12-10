@@ -1,0 +1,50 @@
+:root {
+  --bg: #0f1226;
+  --panel: #1a1f3d;
+  --text: #e6e9ff;
+  --accent: #ffcc4d;
+  --grid: #3b437b;
+  --hero: #58e0ff;
+}
+
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  padding: 0;
+  background: radial-gradient(1000px 600px at 30% 20%, #121636, var(--bg));
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+}
+
+header, footer {
+  text-align: center;
+  padding: 1rem;
+}
+
+header h1 {
+  margin: 0.25rem 0;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+header p {
+  margin: 0.25rem 0 0;
+  color: #cfd3ff;
+}
+
+main {
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+canvas {
+  border: 2px solid var(--panel);
+  border-radius: 10px;
+  background: #0b0f24;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.4), inset 0 0 40px rgba(59,67,123,0.25);
+}
+
+footer small {
+  color: #aab0e6;
+}
