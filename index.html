@@ -1,194 +1,25 @@
-<!DOCTYPE html> <html lang="en"> <head> <meta charset="UTF-8" /> <meta name="viewport" content="width=device-width, initial-scale=1" /> <title>Rabbids + Mario Style Game</title> <style> body { margin: 0; background: linear-gradient(to bottom, #87ceeb, #f0f8ff); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; } #gameCanvas { background: #7ec850; display: block; margin: 0 auto; border: 5px solid #333; border-radius: 15px; box-shadow: 0 0 20px rgba(0,0,0,0.5); } #ui { text-align: center; margin-top: 10px; color: #333; font-weight: bold; font-size: 18px; text-shadow: 1px 1px 0 #fff; } #startButton { background-color: #ffcc00; border: none; padding: 10px 20px; font-size: 18px; border-radius: 10px; cursor: pointer; box-shadow: 0 4px #cc9900; transition: background-color 0.3s ease; } #startButton:hover { background-color: #ffdb4d; } </style> </head> <body> <canvas id="gameCanvas" width="800" height="450"></canvas> <div id="ui"> <button id="startButton">Start Game</button> <div id="score">Score: 0</div> </div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Legends & Misfits: Tactics Prototype</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>Legends & Misfits: Tactics Prototype</h1>
+    <p>Use arrow keys to move the hero. Press Space to end turn.</p>
+  </header>
 
-<script>
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
+  <main>
+    <canvas id="game" width="640" height="640" aria-label="Tactics Grid"></canvas>
+  </main>
 
-    const GRAVITY = 0.6;
-    const FLOOR_Y = canvas.height - 50;
+  <footer>
+    <small>© 2025 Your Name</small>
+  </footer>
 
-    class Player {
-        constructor() {
-            this.width = 40;
-            this.height = 50;
-            this.x = 50;
-            this.y = FLOOR_Y - this.height;
-            this.vy = 0;
-            this.speed = 5;
-            this.jumping = false;
-            this.color = '#ff6666'; // Rabbid red-ish
-        }
-
-        draw() {
-            ctx.fillStyle = this.color;
-            ctx.fillRect(this.x, this.y, this.width, this.height);
-            // Eyes
-            ctx.fillStyle = '#fff';
-            ctx.beginPath();
-            ctx.ellipse(this.x + 10, this.y + 15, 8, 10, 0, 0, Math.PI * 2);
-            ctx.ellipse(this.x + 30, this.y + 15, 8, 10, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = '#000';
-            ctx.beginPath();
-            ctx.ellipse(this.x + 10, this.y + 15, 4, 6, 0, 0, Math.PI * 2);
-            ctx.ellipse(this.x + 30, this.y + 15, 4, 6, 0, 0, Math.PI * 2);
-            ctx.fill();
-            // Mouth
-            ctx.strokeStyle = '#000';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(this.x + 10, this.y + 40);
-            ctx.lineTo(this.x + 30, this.y + 40);
-            ctx.stroke();
-        }
-
-        update() {
-            this.vy += GRAVITY;
-            this.y += this.vy;
-
-            if (this.y + this.height > FLOOR_Y) {
-                this.y = FLOOR_Y - this.height;
-                this.vy = 0;
-                this.jumping = false;
-            }
-        }
-
-        jump() {
-            if (!this.jumping) {
-                this.vy = -12;
-                this.jumping = true;
-            }
-        }
-
-        moveLeft() {
-            this.x -= this.speed;
-            if (this.x < 0) this.x = 0;
-        }
-
-        moveRight() {
-            this.x += this.speed;
-            if (this.x + this.width > canvas.width) this.x = canvas.width - this.width;
-        }
-    }
-
-    class Enemy {
-        constructor(x, y, speed) {
-            this.width = 40;
-            this.height = 50;
-            this.x = x;
-            this.y = y;
-            this.speed = speed;
-            this.color = '#6666ff'; // Blue-ish for enemy
-        }
-
-        draw() {
-            ctx.fillStyle = this.color;
-            ctx.fillRect(this.x, this.y, this.width, this.height);
-            // Eyes
-            ctx.fillStyle = '#fff';
-            ctx.beginPath();
-            ctx.ellipse(this.x + 10, this.y + 15, 8, 10, 0, 0, Math.PI * 2);
-            ctx.ellipse(this.x + 30, this.y + 15, 8, 10, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = '#000';
-            ctx.beginPath();
-            ctx.ellipse(this.x + 10, this.y + 15, 4, 6, 0, 0, Math.PI * 2);
-            ctx.ellipse(this.x + 30, this.y + 15, 4, 6, 0, 0, Math.PI * 2);
-            ctx.fill();
-            // Mouth
-            ctx.strokeStyle = '#000';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(this.x + 10, this.y + 40);
-            ctx.lineTo(this.x + 30, this.y + 40);
-            ctx.stroke();
-        }
-
-        update() {
-            this.x -= this.speed;
-            if (this.x + this.width < 0) {
-                this.x = canvas.width + Math.random() * 200;
-            }
-        }
-    }
-
-    let player = new Player();
-    let enemies = [];
-    let score = 0;
-    let gameRunning = false;
-
-    function spawnEnemies() {
-        enemies = [];
-        for (let i = 0; i < 5; i++) {
-            let x = canvas.width + i * 150;
-            let y = FLOOR_Y - 50;
-            let speed = 3 + Math.random() * 2;
-            enemies.push(new Enemy(x, y, speed));
-        }
-    }
-
-    function checkCollision(rect1, rect2) {
-        return rect1.x < rect2.x + rect2.width &&
-               rect1.x + rect1.width > rect2.x &&
-               rect1.y < rect2.y + rect2.height &&
-               rect1.y + rect1.height > rect2.y;
-    }
-
-    function update() {
-        if (!gameRunning) return;
-
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        player.update();
-        player.draw();
-
-        enemies.forEach(enemy => {
-            enemy.update();
-            enemy.draw();
-
-            if (checkCollision(player, enemy)) {
-                gameOver();
-            }
-        });
-
-        // Draw floor
-        ctx.fillStyle = '#654321';
-        ctx.fillRect(0, FLOOR_Y, canvas.width, canvas.height - FLOOR_Y);
-
-        // Update score
-        score += 0.05;
-        document.getElementById('score').textContent = 'Score: ' + Math.floor(score);
-
-        requestAnimationFrame(update);
-    }
-
-    function gameOver() {
-        gameRunning = false;
-        alert('Game Over! Your score: ' + Math.floor(score));
-    }
-
-    window.addEventListener('keydown', (e) => {
-        if (!gameRunning) return;
-        if (e.code === 'ArrowUp' || e.code === 'Space') {
-            player.jump();
-        }
-        if (e.code === 'ArrowLeft') {
-            player.moveLeft();
-        }
-        if (e.code === 'ArrowRight') {
-            player.moveRight();
-        }
-    });
-
-    document.getElementById('startButton').addEventListener('click', () => {
-        if (!gameRunning) {
-            player = new Player();
-            spawnEnemies();
-            score = 0;
-            gameRunning = true;
-            update();
-        }
-    });
-</script>
-
-</body> </html>
+  <script src="script.js"></script>
+</body>
+</html>
