@@ -1,484 +1,194 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Rogue Clone (HTML)</title>
-  <style>
-    :root {
-      --bg: #0b0e13;
-      --fg: #d8dee9;
-      --accent: #88c0d0;
-      --dim: #4c566a;
-      --wall: #a3be8c;
-      --floor: #8fbcbb;
-      --warn: #ebcb8b;
-    }
-    html, body {
-      height: 100%;
-      margin: 0;
-      background: var(--bg);
-      color: var(--fg);
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-    }
-    .wrap {
-      max-width: 1024px;
-      margin: 0 auto;
-      padding: 12px;
-    }
-    h1 {
-      font-size: 18px;
-      margin: 0 0 8px 0;
-      color: var(--accent);
-    }
-    .hud {
-      display: flex;
-      gap: 16px;
-      align-items: center;
-      flex-wrap: wrap;
-      margin-bottom: 8px;
-    }
-    .hud span {
-      color: var(--warn);
-    }
-    .game {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 8px;
-    }
-    .view {
-      background: #0a0d11;
-      border: 1px solid #1f2937;
-      padding: 8px;
-      overflow: auto;
-    }
-    .log {
-      background: #0a0d11;
-      border: 1px solid #1f2937;
-      padding: 8px;
-      min-height: 80px;
-      white-space: pre-wrap;
-      color: var(--dim);
-    }
-    .controls {
-      color: var(--dim);
-      font-size: 13px;
-    }
-    /* ASCII grid */
-    pre#grid {
-      margin: 0;
-      line-height: 1.0;
-      font-size: 16px;
-      letter-spacing: 0.5px;
-      color: var(--fg);
-    }
-    .footer {
-      margin-top: 10px;
-      font-size: 12px;
-      color: var(--dim);
-    }
-    a {
-      color: var(--accent);
-      text-decoration: none;
-    }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <h1>Rogue Clone — HTML edition</h1>
-    <div class="hud">
-      <div id="stats">HP: <span id="hp"></span> Power: <span id="power"></span> Floor: <span id="floor"></span></div>
-    </div>
-    <div class="game">
-      <div class="view">
-        <pre id="grid"></pre>
-      </div>
-      <div id="log" class="log"></div>
-      <div class="controls">
-        Move: Arrow/WASD | Wait: Space | Pickup: g | Inventory: i | Use: letter | Descend: &gt; | Restart: r
-      </div>
-    </div>
-    <div class="footer">Built with vanilla HTML + JS. No dependencies.</div>
-  </div>
+<!DOCTYPE html> <html lang="en"> <head> <meta charset="UTF-8" /> <meta name="viewport" content="width=device-width, initial-scale=1" /> <title>Rabbids + Mario Style Game</title> <style> body { margin: 0; background: linear-gradient(to bottom, #87ceeb, #f0f8ff); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; } #gameCanvas { background: #7ec850; display: block; margin: 0 auto; border: 5px solid #333; border-radius: 15px; box-shadow: 0 0 20px rgba(0,0,0,0.5); } #ui { text-align: center; margin-top: 10px; color: #333; font-weight: bold; font-size: 18px; text-shadow: 1px 1px 0 #fff; } #startButton { background-color: #ffcc00; border: none; padding: 10px 20px; font-size: 18px; border-radius: 10px; cursor: pointer; box-shadow: 0 4px #cc9900; transition: background-color 0.3s ease; } #startButton:hover { background-color: #ffdb4d; } </style> </head> <body> <canvas id="gameCanvas" width="800" height="450"></canvas> <div id="ui"> <button id="startButton">Start Game</button> <div id="score">Score: 0</div> </div>
 
-  <script>
-    // ===== Config =====
-    const MAP_W = 60, MAP_H = 28;
-    const ROOM_MAX = 10, ROOM_MIN_SIZE = 4, ROOM_MAX_SIZE = 8;
-    const FLOORS_TOTAL = 3;
-    const FOV_RADIUS = 8;
-    const PLAYER_HP_MAX = 20;
-    const MONSTER_HP_RANGE = [4, 8];
-    const HEAL_AMOUNT = 8;
-    const MAX_MONSTERS = 14;
-    const MAX_ITEMS = 8;
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
 
-    const WALL = "#";
-    const FLOOR = ".";
-    const STAIRS = ">";
-    const PLAYER_CHAR = "@";
-    const MONSTER_CHAR = "g";
-    const HEAL_ITEM_CHAR = "!";
-    const WEAPON_ITEM_CHAR = "/";
+    const GRAVITY = 0.6;
+    const FLOOR_Y = canvas.height - 50;
 
-    // ===== Utilities =====
-    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-    const dist = (a, b) => Math.hypot(a[0]-b[0], a[1]-b[1]);
-    const randInt = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
-    const shuffle = (arr) => { for (let i=arr.length-1;i>0;i--) { const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; };
-    const rectsOverlap = (a,b) => !(a.x+a.w <= b.x || b.x+b.w <= a.x || a.y+a.h <= b.y || b.y+b.h <= a.y);
+    class Player {
+        constructor() {
+            this.width = 40;
+            this.height = 50;
+            this.x = 50;
+            this.y = FLOOR_Y - this.height;
+            this.vy = 0;
+            this.speed = 5;
+            this.jumping = false;
+            this.color = '#ff6666'; // Rabbid red-ish
+        }
 
-    function linePoints(x0, y0, x1, y1) {
-      // Bresenham integer line
-      const points = [];
-      let dx = Math.abs(x1 - x0);
-      let dy = -Math.abs(y1 - y0);
-      let sx = x0 < x1 ? 1 : -1;
-      let sy = y0 < y1 ? 1 : -1;
-      let err = dx + dy;
-      let x = x0, y = y0;
-      while (true) {
-        points.push([x, y]);
-        if (x === x1 && y === y1) break;
-        const e2 = 2 * err;
-        if (e2 >= dy) { err += dy; x += sx; }
-        if (e2 <= dx) { err += dx; y += sy; }
-      }
-      return points;
-    }
+        draw() {
+            ctx.fillStyle = this.color;
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+            // Eyes
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.ellipse(this.x + 10, this.y + 15, 8, 10, 0, 0, Math.PI * 2);
+            ctx.ellipse(this.x + 30, this.y + 15, 8, 10, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.ellipse(this.x + 10, this.y + 15, 4, 6, 0, 0, Math.PI * 2);
+            ctx.ellipse(this.x + 30, this.y + 15, 4, 6, 0, 0, Math.PI * 2);
+            ctx.fill();
+            // Mouth
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(this.x + 10, this.y + 40);
+            ctx.lineTo(this.x + 30, this.y + 40);
+            ctx.stroke();
+        }
 
-    // ===== Map & tiles =====
-    class Tile {
-      constructor(char = WALL, walk = false) {
-        this.char = char;
-        this.walk = walk;
-        this.seen = false;
-      }
-    }
-    class GameMap {
-      constructor(w, h) {
-        this.w = w;
-        this.h = h;
-        this.tiles = [...Array(w)].map(() => [...Array(h)].map(() => new Tile(WALL, false)));
-        this.stairs = null;
-      }
-      inBounds(x, y) { return x >= 0 && y >= 0 && x < this.w && y < this.h; }
-      carveRoom(x, y, w, h) {
-        for (let i=x; i<x+w; i++) for (let j=y; j<y+h; j++) {
-          const t = this.tiles[i][j];
-          t.char = FLOOR; t.walk = true;
-        }
-      }
-      carveCorridor(x1, y1, x2, y2) {
-        for (let x = Math.min(x1,x2); x <= Math.max(x1,x2); x++) {
-          const t = this.tiles[x][y1]; t.char = FLOOR; t.walk = true;
-        }
-        for (let y = Math.min(y1,y2); y <= Math.max(y1,y2); y++) {
-          const t = this.tiles[x2][y]; t.char = FLOOR; t.walk = true;
-        }
-      }
-      generate() {
-        const rooms = [];
-        let attempts = 0;
-        while (rooms.length < ROOM_MAX && attempts < ROOM_MAX * 6) {
-          const w = randInt(ROOM_MIN_SIZE, ROOM_MAX_SIZE);
-          const h = randInt(ROOM_MIN_SIZE, ROOM_MAX_SIZE);
-          const x = randInt(1, this.w - w - 2);
-          const y = randInt(1, this.h - h - 2);
-          const rect = {x,y,w,h};
-          if (rooms.some(r => rectsOverlap(rect, r))) { attempts++; continue; }
-          this.carveRoom(x,y,w,h);
-          if (rooms.length) {
-            const prev = rooms[rooms.length-1];
-            const cx1 = x + Math.floor(w/2), cy1 = y + Math.floor(h/2);
-            const cx2 = prev.x + Math.floor(prev.w/2), cy2 = prev.y + Math.floor(prev.h/2);
-            this.carveCorridor(cx1, cy1, cx2, cy2);
-          }
-          rooms.push(rect);
-        }
-        if (rooms.length) {
-          const last = rooms[rooms.length-1];
-          const sx = last.x + Math.floor(last.w/2), sy = last.y + Math.floor(last.h/2);
-          const t = this.tiles[sx][sy]; t.char = STAIRS; t.walk = true;
-          this.stairs = [sx, sy];
-        }
-        return rooms;
-      }
-      blocksSight(x, y) {
-        if (!this.inBounds(x, y)) return true;
-        return this.tiles[x][y].char === WALL;
-      }
-      computeFov(px, py, radius) {
-        const visible = new Set();
-        for (let y = py - radius; y <= py + radius; y++) {
-          for (let x = px - radius; x <= px + radius; x++) {
-            if (!this.inBounds(x,y)) continue;
-            if (dist([px,py],[x,y]) > radius) continue;
-            const los = linePoints(px, py, x, y);
-            let blocked = false;
-            for (const [lx,ly] of los) {
-              if (this.blocksSight(lx,ly) && !(lx===px && ly===py)) { blocked = true; break; }
+        update() {
+            this.vy += GRAVITY;
+            this.y += this.vy;
+
+            if (this.y + this.height > FLOOR_Y) {
+                this.y = FLOOR_Y - this.height;
+                this.vy = 0;
+                this.jumping = false;
             }
-            if (!blocked) visible.add(`${x},${y}`);
-          }
         }
-        return visible;
-      }
-    }
 
-    // ===== Entities & items =====
-    class Entity {
-      constructor(x,y,char,name,hp,power=1) { this.x=x; this.y=y; this.char=char; this.name=name; this.hp=hp; this.power=power; this.alive=true; }
-    }
-    class Item {
-      constructor(x,y,char,name,useFn) { this.x=x; this.y=y; this.char=char; this.name=name; this.useFn=useFn; }
-    }
-
-    // ===== Game state =====
-    class Game {
-      constructor() {
-        this.floor = 1;
-        this.messageLog = [];
-        this.inventory = [];
-        this.weaponBonus = 0;
-        this.keysHeld = new Set();
-        this.makeFloor(true);
-      }
-      makeFloor(initial=false) {
-        this.map = new GameMap(MAP_W, MAP_H);
-        const rooms = this.map.generate();
-        let px, py;
-        if (rooms.length) {
-          const r0 = rooms[0];
-          px = r0.x + Math.floor(r0.w/2); py = r0.y + Math.floor(r0.h/2);
-        } else { px = Math.floor(MAP_W/2); py = Math.floor(MAP_H/2); }
-        if (!initial && this.player) {
-          this.player.x = px; this.player.y = py;
-          this.player.hp = Math.max(this.player.hp, 1);
-        } else {
-          this.player = new Entity(px, py, PLAYER_CHAR, "You", PLAYER_HP_MAX, 2);
-        }
-        this.entities = [this.player];
-        this.spawnMonsters();
-        this.items = [];
-        this.spawnItems();
-        this.log(`Floor ${this.floor}. Find the stairs '>'.`);
-        this.visible = new Set();
-        this.fovUpdate();
-        this.draw();
-      }
-      spawnMonsters() {
-        const floors = shuffle(this.walkableTiles());
-        const count = randInt(Math.floor(MAX_MONSTERS/2), MAX_MONSTERS);
-        for (let i=0;i<count;i++) {
-          if (!floors.length) break;
-          const [x,y] = floors.pop();
-          if (x===this.player.x && y===this.player.y) continue;
-          const hp = randInt(MONSTER_HP_RANGE[0], MONSTER_HP_RANGE[1]);
-          const m = new Entity(x,y,MONSTER_CHAR,"Goblin",hp,randInt(1,3));
-          this.entities.push(m);
-        }
-      }
-      spawnItems() {
-        const floors = shuffle(this.walkableTiles());
-        const count = randInt(Math.floor(MAX_ITEMS/2), MAX_ITEMS);
-        for (let i=0;i<count;i++) {
-          if (!floors.length) break;
-          const [x,y] = floors.pop();
-          if (Math.random() < 0.6) {
-            this.items.push(new Item(x,y,HEAL_ITEM_CHAR,"Healing herb",(item)=>this.useHeal(item)));
-          } else {
-            this.items.push(new Item(x,y,WEAPON_ITEM_CHAR,"Rusty dagger",(item)=>this.useWeapon(item)));
-          }
-        }
-      }
-      walkableTiles() {
-        const out=[];
-        for (let x=0;x<this.map.w;x++) for (let y=0;y<this.map.h;y++) {
-          if (this.map.tiles[x][y].walk) out.push([x,y]);
-        }
-        return out;
-      }
-      log(msg) {
-        this.messageLog.push(msg);
-        if (this.messageLog.length > 6) this.messageLog.shift();
-        this.updateLog();
-      }
-      updateLog() {
-        const el = document.getElementById("log");
-        el.textContent = this.messageLog.join("\n");
-      }
-      fovUpdate() {
-        this.visible = this.map.computeFov(this.player.x, this.player.y, FOV_RADIUS);
-        for (const key of this.visible) {
-          const [x,y] = key.split(",").map(Number);
-          this.map.tiles[x][y].seen = true;
-        }
-      }
-      entityAt(x,y) {
-        return this.entities.find(e => e.alive && e.x===x && e.y===y);
-      }
-      itemAt(x,y) {
-        return this.items.find(it => it.x===x && it.y===y);
-      }
-      pickup() {
-        const it = this.itemAt(this.player.x, this.player.y);
-        if (it) {
-          this.items = this.items.filter(i => i!==it);
-          this.inventory.push(it);
-          this.log(`You pick up ${it.name}.`);
-        } else {
-          this.log("Nothing here.");
-        }
-      }
-      useHeal(item) {
-        const gain = HEAL_AMOUNT;
-        this.player.hp = clamp(this.player.hp + gain, 1, PLAYER_HP_MAX);
-        this.log(`You use ${item.name} and heal ${gain} HP.`);
-      }
-      useWeapon(item) {
-        this.weaponBonus += 1;
-        this.player.power = 2 + this.weaponBonus;
-        this.log(`You equip ${item.name}. Power now ${this.player.power}.`);
-      }
-      tryDescend() {
-        const s = this.map.stairs;
-        if (s && s[0]===this.player.x && s[1]===this.player.y) {
-          if (this.floor === FLOORS_TOTAL) {
-            this.log("You descend... and escape! You win.");
-            this.draw();
-          } else {
-            this.floor += 1;
-            this.makeFloor();
-          }
-        } else {
-          this.log("You are not on the stairs.");
-        }
-      }
-      moveEntity(e, dx, dy) {
-        const nx = e.x + dx, ny = e.y + dy;
-        if (!this.map.inBounds(nx, ny)) return;
-        if (!this.map.tiles[nx][ny].walk) return;
-        const target = this.entityAt(nx, ny);
-        if (target && target !== e) {
-          this.log(`${e.name} attacks ${target.name}!`);
-          target.hp -= e.power;
-          if (target.hp <= 0) {
-            target.alive = false;
-            this.log(`${target.name} dies.`);
-          }
-          return;
-        }
-        e.x = nx; e.y = ny;
-      }
-      aiTurns() {
-        for (const e of this.entities) {
-          if (!e.alive || e === this.player) continue;
-          if (dist([e.x,e.y],[this.player.x,this.player.y]) <= 7) {
-            let dx = clamp(this.player.x - e.x, -1, 1);
-            let dy = clamp(this.player.y - e.y, -1, 1);
-            if (Math.abs(dx)+Math.abs(dy)===2) { if (Math.random()<0.5) dy=0; else dx=0; }
-            this.moveEntity(e, dx, dy);
-          }
-        }
-      }
-      inventoryMenu() {
-        // Simple inline prompt via overlay log text
-        const letters = this.inventory.map((it, i) => String.fromCharCode(97+i));
-        if (!this.inventory.length) { this.log("(inventory empty)"); return; }
-        this.log("Inventory: " + this.inventory.map((it,i)=>`${String.fromCharCode(97+i)}) ${it.name}`).join("  "));
-        this.awaitingInventory = true;
-      }
-      handleInventoryKey(key) {
-        if (!this.awaitingInventory) return false;
-        const idx = key.charCodeAt(0) - 97;
-        if (idx >= 0 && idx < this.inventory.length) {
-          const item = this.inventory.splice(idx, 1)[0];
-          item.useFn(item);
-          this.awaitingInventory = false;
-          return true;
-        }
-        // Any key exits inventory mode
-        this.awaitingInventory = false;
-        return false;
-      }
-      update(key) {
-        if (this.handleInventoryKey(key)) {
-          this.postTurn();
-          return;
-        }
-        let dx=0, dy=0;
-        if (["ArrowUp","w","W"].includes(key)) dy=-1;
-        else if (["ArrowDown","s","S"].includes(key)) dy=1;
-        else if (["ArrowLeft","a","A"].includes(key)) dx=-1;
-        else if (["ArrowRight","d","D"].includes(key)) dx=1;
-        else if (key === " "){ this.log("You wait."); }
-        else if (key === "g" || key === "G"){ this.pickup(); }
-        else if (key === "i" || key === "I"){ this.inventoryMenu(); }
-        else if (key === ">"){ this.tryDescend(); }
-        else if (key === "r" || key === "R"){ this.restart(); return; }
-
-        if (dx || dy) this.moveEntity(this.player, dx, dy);
-        this.postTurn();
-      }
-      postTurn() {
-        this.fovUpdate();
-        this.aiTurns();
-        if (!this.player.alive || this.player.hp <= 0) {
-          this.player.alive = false;
-          this.log("You have died. Press 'r' to restart.");
-        }
-        this.draw();
-      }
-      restart() {
-        this.floor = 1;
-        this.messageLog = [];
-        this.inventory = [];
-        this.weaponBonus = 0;
-        this.makeFloor(true);
-        this.draw();
-      }
-      draw() {
-        // Stats
-        document.getElementById("hp").textContent = `${this.player.hp}/${PLAYER_HP_MAX}`;
-        document.getElementById("power").textContent = `${this.player.power}`;
-        document.getElementById("floor").textContent = `${this.floor}`;
-        // Grid ASCII
-        const rows = [];
-        for (let y=0;y<this.map.h;y++) {
-          let row = "";
-          for (let x=0;x<this.map.w;x++) {
-            const key = `${x},${y}`;
-            const tile = this.map.tiles[x][y];
-            let ch = " ";
-            if (this.visible.has(key)) {
-              const ent = this.entityAt(x,y);
-              if (ent && ent.alive) ch = ent.char;
-              else {
-                const item = this.itemAt(x,y);
-                ch = item ? item.char : tile.char;
-              }
-            } else if (tile.seen) {
-              if (tile.char === FLOOR || tile.char === STAIRS) ch = " ";
-              else ch = WALL;
-            } else {
-              ch = " ";
+        jump() {
+            if (!this.jumping) {
+                this.vy = -12;
+                this.jumping = true;
             }
-            row += ch;
-          }
-          rows.push(row);
         }
-        document.getElementById("grid").textContent = rows.join("\n");
-      }
+
+        moveLeft() {
+            this.x -= this.speed;
+            if (this.x < 0) this.x = 0;
+        }
+
+        moveRight() {
+            this.x += this.speed;
+            if (this.x + this.width > canvas.width) this.x = canvas.width - this.width;
+        }
     }
 
-    // ===== Input handling =====
-    const game = new Game();
-    window.addEventListener("keydown", (e) => {
-      // prevent scrolling with arrows/space
-      if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," "].includes(e.key)) e.preventDefault();
-      game.update(e.key);
+    class Enemy {
+        constructor(x, y, speed) {
+            this.width = 40;
+            this.height = 50;
+            this.x = x;
+            this.y = y;
+            this.speed = speed;
+            this.color = '#6666ff'; // Blue-ish for enemy
+        }
+
+        draw() {
+            ctx.fillStyle = this.color;
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+            // Eyes
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.ellipse(this.x + 10, this.y + 15, 8, 10, 0, 0, Math.PI * 2);
+            ctx.ellipse(this.x + 30, this.y + 15, 8, 10, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.ellipse(this.x + 10, this.y + 15, 4, 6, 0, 0, Math.PI * 2);
+            ctx.ellipse(this.x + 30, this.y + 15, 4, 6, 0, 0, Math.PI * 2);
+            ctx.fill();
+            // Mouth
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(this.x + 10, this.y + 40);
+            ctx.lineTo(this.x + 30, this.y + 40);
+            ctx.stroke();
+        }
+
+        update() {
+            this.x -= this.speed;
+            if (this.x + this.width < 0) {
+                this.x = canvas.width + Math.random() * 200;
+            }
+        }
+    }
+
+    let player = new Player();
+    let enemies = [];
+    let score = 0;
+    let gameRunning = false;
+
+    function spawnEnemies() {
+        enemies = [];
+        for (let i = 0; i < 5; i++) {
+            let x = canvas.width + i * 150;
+            let y = FLOOR_Y - 50;
+            let speed = 3 + Math.random() * 2;
+            enemies.push(new Enemy(x, y, speed));
+        }
+    }
+
+    function checkCollision(rect1, rect2) {
+        return rect1.x < rect2.x + rect2.width &&
+               rect1.x + rect1.width > rect2.x &&
+               rect1.y < rect2.y + rect2.height &&
+               rect1.y + rect1.height > rect2.y;
+    }
+
+    function update() {
+        if (!gameRunning) return;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        player.update();
+        player.draw();
+
+        enemies.forEach(enemy => {
+            enemy.update();
+            enemy.draw();
+
+            if (checkCollision(player, enemy)) {
+                gameOver();
+            }
+        });
+
+        // Draw floor
+        ctx.fillStyle = '#654321';
+        ctx.fillRect(0, FLOOR_Y, canvas.width, canvas.height - FLOOR_Y);
+
+        // Update score
+        score += 0.05;
+        document.getElementById('score').textContent = 'Score: ' + Math.floor(score);
+
+        requestAnimationFrame(update);
+    }
+
+    function gameOver() {
+        gameRunning = false;
+        alert('Game Over! Your score: ' + Math.floor(score));
+    }
+
+    window.addEventListener('keydown', (e) => {
+        if (!gameRunning) return;
+        if (e.code === 'ArrowUp' || e.code === 'Space') {
+            player.jump();
+        }
+        if (e.code === 'ArrowLeft') {
+            player.moveLeft();
+        }
+        if (e.code === 'ArrowRight') {
+            player.moveRight();
+        }
     });
-  </script>
-</body>
-</html>
+
+    document.getElementById('startButton').addEventListener('click', () => {
+        if (!gameRunning) {
+            player = new Player();
+            spawnEnemies();
+            score = 0;
+            gameRunning = true;
+            update();
+        }
+    });
+</script>
+
+</body> </html>
